@@ -1,0 +1,362 @@
+---
+title: "Le modèle linéaire"
+subtitle: "Application à la modélisation de la distribution des espèces marines"
+header-includes:
+  - \renewcommand{\labelitemi}{--}
+  - \newcommand{\bY}{\boldsymbol{Y}}
+  - \newcommand{\bX}{\boldsymbol{X}}
+  - \newcommand{\bTheta}{\boldsymbol{\theta}}
+  - \newcommand{\btheta}{\boldsymbol{\theta}}
+  - \newcommand{\bE}{\boldsymbol{E}}
+  - \newcommand{\by}{\boldsymbol{y}}
+  - \newcommand{\bx}{\boldsymbol{x}}
+  - \newcommand{\bG}{\boldsymbol{G}}
+  - \newcommand{\bH}{\boldsymbol{H}}
+  - \newcommand{\bP}{\boldsymbol{P}}
+  - \newcommand{\bSigma}{\boldsymbol{\Sigma}}
+format:
+  pdf:
+    mathspec: true
+    number-sections: true
+---
+
+```{r setup, include=FALSE}
+
+library(tidyverse)
+library(ggplot2)
+library(maps)
+library(mapdata)
+library(sf)
+
+```
+
+
+# Question écologique et cas d'application
+
+## Distribution des espèces et niche écologique
+
+La distribution des espèces varie en fonction des conditions environnementales (facteurs abiotiques - température, salinité ou profondeur) et de processus d'interaction entre individus et espèces (facteurs biotiques - compétition, prédation ou coopération). Comprendre ces mécanismes est essentiel pour relier la présence ou l’abondance d’une espèce aux caractéristiques de son habitat. En général, les modèles statistiques utilisés pour décrire la distribution des espèces permettent d'infèrer la relation d'une espèce à son environnement et se concentre sur les facteurs abiotiques de la distribution des espèces. C'est ce qui est généralement appelé **niche écologique**. Dans le cadre de ce cours, nous cherchons à relier la distribution des poissons du Golfe de Gascogne aux covariables environnementales influencant la répartition de ces espèces (\textit{i.e.}, inférer la niche écologique des espèces). Une méthode standard pour inférer la niche écologique d'une espèce est le **modèle linéaire**.
+
+## Données d'application
+
+L'étude de la niche écologique des espèces marines repose en grande partie sur les données issues de campagnes océanographiques. Ces campagnes permettent de récolter des données d'abondance et de biomasse des espèces sur l'ensemble d'un écosystème donnée - par exemple Golfe de Gascogne (GdG) / Mer Celtique (MC). Ces données sont cruciales pour le suivi des espèces marines afin d'évaluer le bon état écologique des populations exploitées. Elles permettent notamment de mettre en relation la biomasse ou l'abondance des espèces et les covariables environnementales influencant la répartition des ces espèces.
+
+Pour ce cours, nous allons étudier les données issues de la campagne [EVHOE](https://campagnes.flotteoceanographique.fr/series/8/fr/). Les données EVHOE (Evaluation Halieutique Ouest de l'Europe) sont des données échantillonnées chaque année en Octobre/Novembre. Cette campagne cible les espèces bentho-démersales du golfe de Gascogne (GdG) et de Mer Celtique (MC). L'échantillonnage de la zone d'étude est stratifié suivant les classes de profondeur et les grandes unités écologiques du GdG et de MC. La description des données est donnée en annexe.
+
+```{r,echo=F}
+#| warning: false
+#| message: false
+#| cache: true
+
+#------------------------------
+# Load data
+#------------------------------
+load("data/EVHOE_2008_2019.RData")
+
+evhoe_shp <- st_read("data/STRATES/Agreed_Strata_EVHOE_Polyg_WGS84.shp",quiet = T) %>% 
+  select(STRATE) %>%
+  mutate(area_strata = as.numeric(st_area(.)))
+
+# Species of interest
+species <- "Merluccius_merluccius"
+
+# Base map (only needed countries)
+mapBase <- maps::map("worldHires", fill = TRUE, plot = FALSE) %>% 
+  st_as_sf() %>% 
+  filter(ID %in% c("France", "Spain", "UK", "Ireland"))
+
+#------------------------------
+# Haul data
+#------------------------------
+Haul_df <- Save_Datras$datras_HH.full %>%
+  select(Year, long, lati, StNo, HaulNo, Depth)
+
+# Extent of EVHOE
+xlims <- range(pretty(Haul_df$long))
+ylims <- range(pretty(Haul_df$lati))
+year_vec <- sort(unique(Haul_df$Year))
+
+# Convert haul points to sf and intersect with strata
+Haul_sf <- st_as_sf(Haul_df, coords = c("long", "lati"), crs = st_crs(evhoe_shp))
+Haul_sf_2 <- st_intersection(Haul_sf, evhoe_shp)
+
+# Plot hauls colored by strata
+Haul_plot <- ggplot(Haul_sf_2) +
+  geom_sf(aes(color = STRATE)) +
+  geom_sf(data = mapBase) +
+  coord_sf(xlim = xlims, ylim = ylims, expand = FALSE) +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 90),
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 10),
+    panel.spacing.x = unit(4, "mm")
+  ) +
+  labs(x = "", y = "")
+
+ggsave(filename = "images/haul_plot.png",width = 6,height = 6)
+
+#------------------------------
+# Catch data
+#------------------------------
+Catch_df <- Save_Datras$datras_sp.HL.full %>%
+  group_by(Year, long, lati, StNo, HaulNo, scientificname) %>%
+  summarise(TotalBiom = sum(CatCatchWgt), .groups = "drop")
+
+# Ensure missing hauls are kept
+Catch_df_2 <- full_join(Catch_df, Haul_df, by = c("Year", "long", "lati", "StNo", "HaulNo")) %>%
+  mutate(haul_id = paste(StNo, HaulNo, Year, sep = "-")) %>%
+  pivot_wider(names_from = scientificname, values_from = TotalBiom)
+
+# Convert to sf and intersect with EVHOE strata
+Catch_sf <- st_as_sf(Catch_df_2, coords = c("long", "lati"), crs = st_crs(evhoe_shp)) %>% 
+  st_intersection(evhoe_shp) |> 
+  mutate(Strata = str_sub(STRATE,1,2)) |> 
+  mutate(Strata = ifelse(Strata == "Cn" | Strata == "Cc","Ccn", Strata))
+
+# Keep only target species
+Catch_sf_species <- Catch_sf %>%
+  select(Year, StNo, HaulNo, STRATE, area_strata, Depth, all_of(species)) %>%
+  rename(TotalBiom = !!species) %>%
+  mutate(TotalBiom = replace_na(TotalBiom, 0))
+
+# Plot species abundance
+Evhoe_plot <- ggplot(Catch_sf_species) +
+  geom_sf(aes(color = TotalBiom)) +
+  scale_color_distiller(palette = "Spectral", trans = "log10") +
+  facet_wrap(~Year) +
+  geom_sf(data = mapBase) +
+  coord_sf(xlim = xlims, ylim = ylims, expand = FALSE) +
+  theme_bw() +
+  theme(
+    title = element_text(size = 10),
+    axis.text.x = element_text(angle = 90),
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 10),
+    panel.spacing.x = unit(4, "mm")
+  ) +
+  labs(x = "", y = "")
+
+ggsave(filename = "images/biomass_plot.png",width = 6,height = 6)
+
+```
+
+
+# Le modèle linéaire
+
+Dans un premier temps, on introduit le modèle linéaire qui va permettre de décrire la niche écologique des espèces à partir des données EVHOE. On considère que la distribution des espèces dépend de la profondeur et de la zone géographique (Mer Celtique Nord/Centre et Sud, Golfe de Gascogne Nord et Sud). En particulier, la profondeur a un effet quadratique sur la quantité de poisson capturée et il y a quatre niveaux de facteurs pour la zone géographique (`StrataCcn` pour la Mer Celtique centre et nord, `StrataCs` pour la Mer Celtrique sud, `StrataGn` pour le Golfe de Gascogne nord, `StrataGs` pour le Golfe de Gascogne sud).
+
+Le modèle linéaire correspondant s'écrit:
+$$y_{ij} = \alpha + \beta_1 \cdot d_i + \beta_2 \cdot d^2_i + \gamma_j + \epsilon_{ij}$$
+où :
+
+- $y_{ij}$ est le $log$ de la biomasse capturée au point $i$ pour le niveau de facteur $j$, 
+
+- $d_i$ est la profondeur, 
+
+- $\alpha$ est l'intercept, 
+
+- $\beta_1$ et $\beta_2$ sont les paramètres associés à la profondeur, 
+
+- $(\gamma_j)_{j \in \{1,\cdots,4\}}$ sont les paramètres associés à la localisation en MC/GdG. Pour un soucis d'identifiabilité, $\gamma_1$ est fixé tel que $\gamma_1 = 0$. L'effet de la strate `StrataCcn` est capturée par l'intercept $\alpha$.
+
+- $\epsilon_{ij}$ est une variable aléatoire gaussienne de variance $\sigma^2$ tel que:
+$$\epsilon_{ij} \overset{i.i.d}{\sim} \mathcal{N}(0,\sigma^2)$$
+Sous forme matricielle, le modèle peut s'écrire:
+
+$$\bY = \bX \btheta + \bE$$
+où:
+
+$$\bY = 
+\begin{bmatrix} y_{11} \\ y_{21} \\ \vdots \\ y_{n4} \end{bmatrix}, \quad
+\btheta =
+\begin{bmatrix} \alpha \\ \beta_1 \\ \beta_2 \\ \gamma_1 \\ \gamma_2 \\ \gamma_3 \\ \gamma_4 \end{bmatrix}, \quad
+\bE =
+\begin{bmatrix} \epsilon_{11} \\ \epsilon_{21} \\ \vdots \\ \epsilon_{n4} \end{bmatrix}$$
+
+$$\bX=\begin{bmatrix}
+1 & d_1 & d_1^2 & (\delta_{1})_1 & (\delta_{2})_1 & (\delta_{3})_1 & (\delta_{4})_1 \\[6pt]
+1 & d_2 & d_2^2 & (\delta_{1})_2 & (\delta_{2})_2 & (\delta_{3})_2 & (\delta_{4})_2 \\[6pt]
+1 & d_3 & d_3^2 & (\delta_{1})_3 & (\delta_{2})_2 & (\delta_{3})_3 & (\delta_{4})_3 \\[6pt]
+\vdots & \vdots & \vdots & \vdots & \vdots & \vdots & \vdots \\[6pt]
+1 & d_i & d_i^2 & (\delta_{1})_i & (\delta_{2})_i & (\delta_{3})_i & (\delta_{4})_i \\[6pt]
+\vdots & \vdots & \vdots & \vdots & \vdots & \vdots & \vdots \\[6pt]
+1 & d_n & d_n^2 & (\delta_{1})_n & (\delta_{2})_n & (\delta_{3})_n & (\delta_{4})_n
+\end{bmatrix} =
+\begin{bmatrix}
+\mathbf{1}_{n_1} & \mathbf{D}^{(1)} & (\mathbf{D}^{2})^{(1)} & \mathbf{0}_{n_1} & \mathbf{0}_{n_1} & \mathbf{0}_{n_1} & \mathbf{0}_{n_1} \\[6pt]
+\mathbf{1}_{n_2} & \mathbf{D}^{(2)} & (\mathbf{D}^{2})^{(2)} & \mathbf{0}_{n_2} & \mathbf{1}_{n_2} & \mathbf{0}_{n_2} & \mathbf{0}_{n_2} \\[6pt]
+\mathbf{1}_{n_3} & \mathbf{D}^{(3)} & (\mathbf{D}^{2})^{(3)} & \mathbf{0}_{n_3} & \mathbf{0}_{n_3} & \mathbf{1}_{n_3} & \mathbf{0}_{n_3} \\[6pt]
+\mathbf{1}_{n_4} & \mathbf{D}^{(4)} & (\mathbf{D}^{2})^{(4)} & \mathbf{0}_{n_4} & \mathbf{0}_{n_4} & \mathbf{0}_{n_4} & \mathbf{1}_{n_4}
+\end{bmatrix}$$
+
+\begin{itemize}
+    \item $\mathbf{1}_n$ : vecteur de uns de taille $n$. $\mathbf{0}_n$, vecteur de zéros de taille $n$.
+    \item $(d_1, \dots, d_n)^\top$ : profondeur de chaque point d'échantillonnage, associée au paramètre $\beta_1$.
+    \item $(d_1^2, \dots, d_n^2)^\top$ : profondeur au carré, associée au paramètre $\beta_2$.
+    \item $\left((\delta_{1})_1,\cdots,(\delta_{1})_n\right)^\top$ : indicatrice pour la première zone géographique `StrataCcn`, associée à $\gamma_1$. Il peut être fixé à 0 pour assurer l'identifiabilité du modèle. Le nombre d'échantillon associé à ce niveau de facteur est noté $n_1$. Les mêmes notations s'appliquent pour $(\delta_{2})_i$, $(\delta_{3})_i$, $(\delta_{4})_i$.
+    \item $\mathbf{D}^{(1)}$ : vecteur de l'ensemble des profondeurs pour la première zone géographique. $(\mathbf{D}^2)^{(1)}$ : vecteur de l'ensemble des profondeurs au carré pour la première zone géographique. Les mêmes notations s'appliquent pour les autres zones géographiques.
+\end{itemize}
+
+Dans la suite, $y_i$ est la réalisation de cette variable aléatoire. $\boldsymbol x_i$ désigne la i$^e$ ligne de la matrice $\bX$ et $\epsilon_i$ le i$^e$ terme du vecteur $\bE$.
+
+```{r,echo=F}
+#| cache: true
+
+## Only retain the species where at least
+## 100 positive observations exist
+spp_df <- table(Catch_df$scientificname) |>
+  data.frame() |>
+  arrange(desc(Freq)) |> 
+  filter(Freq > 100)
+
+for(spp_i in spp_df$Var1){
+
+  ## Make data
+  df <- Catch_sf |> 
+    select(Depth, Strata, all_of(spp_i)) %>%
+    rename(TotalBiom = !!spp_i) %>%
+    mutate(TotalBiom = replace_na(TotalBiom, 0)) |> 
+    filter(TotalBiom > 0) |> 
+    mutate(DepthSquare = Depth^2)
+
+  ## Fit linear model
+  lm1 <- lm(data = df, log(TotalBiom) ~ Depth + DepthSquare + Strata)
+  
+  ## Store model parameters
+  sum_lm1 <- summary(lm1)
+  if(nrow(sum_lm1$coefficients) == 6){
+      params_i <- data.frame(scientificname = spp_i,
+                            beta1 = sum_lm1$coefficients["Depth","Estimate"],
+                            beta2 = sum_lm1$coefficients["DepthSquare","Estimate"],
+                            gamma2 = sum_lm1$coefficients["StrataCs","Estimate"],
+                            gamma3 = sum_lm1$coefficients["StrataGn","Estimate"],
+                            gamma4 = sum_lm1$coefficients["StrataGs","Estimate"],
+                            sd_beta1 = sum_lm1$coefficients["Depth","Std. Error"],
+                            sd_beta2 = sum_lm1$coefficients["DepthSquare","Std. Error"],
+                            sd_gamma2 = sum_lm1$coefficients["StrataCs","Std. Error"],
+                            sd_gamma3 = sum_lm1$coefficients["StrataGn","Std. Error"],
+                            sd_gamma4 = sum_lm1$coefficients["StrataGs","Std. Error"])
+  
+    if(spp_i == spp_df$Var1[1]) params_df <- params_i
+    if(spp_i != spp_df$Var1[1]) params_df <- rbind(params_df,params_i)
+
+    ## Make predictions along Depth values
+    seq_depth <- seq(from = 0, to = 530,length.out = 300)
+    newdata_predict <- data.frame(Depth = seq_depth,DepthSquare = seq_depth^2,Strata = "Ccn")
+    lm1_predict <- predict(lm1,newdata = newdata_predict,se.fit = T)
+    predict_i <- data.frame(scientificname = spp_i,
+                            Depth = seq_depth,
+                            value = lm1_predict$fit,
+                            sd_value = lm1_predict$se.fit)
+    if(spp_i == spp_df$Var1[1]) predict_df <- predict_i
+    if(spp_i != spp_df$Var1[1]) predict_df <- rbind(predict_df,predict_i)
+  }
+
+}
+
+## Plot parameters values
+params_df_2 <- params_df |> 
+  dplyr::select(scientificname:gamma4) |> 
+  pivot_longer(beta1:gamma4) |> 
+  rename(params = name)
+
+sd_params_df <- params_df |> 
+  dplyr::select(scientificname,sd_beta1:sd_gamma4) |> 
+  pivot_longer(sd_beta1:sd_gamma4) |> 
+  rename(params = name,sd_value = value) |> 
+  mutate(params = str_sub(params,4,-1))
+
+params_df_3 <- inner_join(params_df_2,sd_params_df,by = c("scientificname", "params"))
+
+params_plot <- ggplot(params_df_3, aes(x=scientificname, y=value, fill=params)) + 
+  geom_bar(stat="identity", color="black", 
+           position=position_dodge()) +
+  geom_errorbar(aes(ymin=value-1.96*sd_value, ymax=value+1.96*sd_value), width=.2,
+                 position=position_dodge(.9))+
+  facet_wrap(.~params,scales = "free_y",ncol = 1)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90,hjust = 1,vjust = 0.5,size=10),
+        legend.title = element_blank())+
+  xlab("")+ylab("Parameters value")
+
+ggsave("images/params_plot.png",height = 9,width = 10)
+
+## Plot predictions along depth gradient
+spp_to_plot <- c("Argentina_sphyraena","Capros_aper",
+  "Callionymus_lyra","Lophius_piscatorius","Merluccius_merluccius","Gadiculus_argenteus","Illex_coindetii")
+
+spp_response_depth <- predict_df |> 
+  filter(scientificname %in% spp_to_plot) |> 
+  ggplot(aes(x = Depth, y = value, col = scientificname))+
+  geom_ribbon(aes(ymin = value - 1.96 * sd_value, ymax = value + 1.96 * sd_value,fill = scientificname),col=NA,alpha = 0.25)+
+  geom_line()+
+  theme_bw()+
+  xlab("Profondeur (mètre)")+ylab("log(Y)")+
+  theme(plot.title = element_text(hjust = 0.5,face = "bold"),
+        legend.title = element_blank(),
+        aspect.ratio = 1)
+
+ggsave("images/spp_response_depth.png",width = 6,height = 4.5)
+
+# # Codes to select the species to plot
+# params_df_3 |> 
+#   filter(params %in% c("beta1")) |> 
+#   filter(!((value + 1.96 * sd_value > 0) & (value - 1.96 * sd_value < 0))) |> 
+#   arrange(desc(value)) |> print(n = 20)
+# params_df_3 |> 
+#   filter(params %in% c("beta2")) |> 
+#   filter(!((value + 1.96 * sd_value > 0) & (value - 1.96 * sd_value < 0))) |> 
+#   arrange(desc(value))
+
+```
+
+\newpage
+
+Le modèle linéaire appliqué sur les principales espèces capturées par la campagne EVHOE donne les estimations suivantes.
+
+\bigskip
+
+![Paramètres du modèles linéaire pour les principales espèces observées de la campagne EVHOE.](images/params_plot.png){width=100% fig-align="center"}
+
+![Réponse de différentes espèces à la profondeur.](images/spp_response_depth.png){width=80% fig-align="center"}
+
+**Sources bibliographiques**
+
+Bel, L., Daudin, J. J., Etienne, M., Lebarbier, E., Mary-Huard, T., Robin, S., & Vuillet, C. (2016). Le Modèle Linéaire et ses Extensions. [Lien](https://moulon.inra.fr/modelstat/supports/ModeleLineaireEt_Extensions-compressed.pdf).
+
+\newpage
+
+# Annexes
+
+## Description des données
+
+Les poissons sont échantillonnées à l'aide d'un chalut ; ils sont comptés, pesés, sexés pour tout ou partie du trait de chalut. Les données entre 2008 et 2019 sont stockés dans le fichier `EVHOE_2008_2019.RData`. Il est constitué de trois data frame:
+
+- `Save_Datras$datras_HH.full` regroupe les principales informations de chaque trait de chalut (e.g. localisation, période de relevé)
+
+  - Year: année
+  - long: longitude
+  - lati: latitude
+  - StNo: numéro de station
+  - HaulNo: numéro du trait de chalut
+  - Depth: profondeur
+  - Distance: distance parcourue pour un trait de chalut (en métres). Il y a des NA dans cette colonne (données manquantes). Dans ce cas, on prend la moyenne de la distance des autres traits de chaluts pour remplacer les NA.
+
+- `Save_Datras$datras_sp.HL.full` regroupe le poids et les abondances sur l'ensemble d'un trait de chalut de chaque combinaison 'trait de chalut x espèce x classe de taille x sexe' (données ré-haussées)
+
+  - Year: année
+  - long: longitude
+  - lati: latitude
+  - StNo: numéro de station
+  - HaulNo: numéro du trait de chalut
+  - scientificname: nom scientifique
+  - LngtClass: classe de taille
+  - TotalNo: comptages (nombre d'individus par combinaison de facteur)
+
+- `Save_Datras$datras_sp.CA.full` regroupe les données de mesures individuelles d'un sous-échantillon du trait de chalut. Une ligne correspond à un individu. Ces données regroupent les données individuelles de taille, de poids, de sexe. Nous n'utiliserons pas ces données dans ce projet.
+
+![Récolte des données EVHOE.](images/evhoe.png){width=80% fig-align="center"}
+
+![Points échantillonnés par la campagne EVHOE toutes années confondues.](images/haul_plot.png){width=80% fig-align="center"}
+
+![Données de biomasse pour le merlu (*Merluccius merluccius*) en kg](images/biomass_plot.png){width=80% fig-align="center"}
+
