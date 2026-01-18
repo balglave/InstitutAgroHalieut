@@ -1,6 +1,6 @@
 ---
 title: "Stats"
-date: "Janvier 2025"
+date: ""
 author: "B. Alglave"
 output:
   beamer_presentation:
@@ -1217,39 +1217,54 @@ for (j in 1:k) {
 
 ## Kriging
 
-Basis of geostatistics \ding{224} Minimum mean-squared error approach
+\small
+
+\textbf{Goal:} predict $Y_0 = Y(x_0)$ from observations
+$\mathbf{Y}=(Y_1,\dots,Y_n)$ at locations $(x_1,\dots,x_n)$
+
+\vspace{0.3cm}
 
 \pause
 
-\vspace{\baselineskip}
+\textbf{Linear unbiased predictor}
+\[
+\hat Y_0 = \sum_{i=1}^n \ell_i Y_i,
+\qquad
+\sum_{i=1}^n \ell_i = 1
+\]
 
-Let's define observations $\mathbf{Y}=(Y_1,Y_2,...,Y_n)$
-
-\vspace{\baselineskip}
-
-A linear predictor of $Y_0$ based on $\mathbf{Y}$ would take the form $\sum \ell_i Y_i+\alpha_0$
-
-\vspace{\baselineskip}
-
-\pause
-
-Using squared error loss, the best linear prediction would minimize $$E\left[Y_0-\left(\sum \ell_i Y_i+\alpha_0\right)\right]^2 \text{ over } \ell_i \text{ and } \alpha_0$$
+\vspace{0.2cm}
 
 \pause
 
-Setting $\sum \ell_i = 1$, $\alpha_0 = 0$, $a_0=1$ and $a_i=-\ell_i$, the criterion becomes $E[\sum_{i=0}^n a_i Y_i]^2$ with $\sum a_i = 0$.
+\textbf{Optimality criterion (MMSE)}
+\[
+\min_{\ell_i}
+E\!\left[\left(Y_0 - \hat Y_0\right)^2\right]
+\]
 
-\vspace{\baselineskip}
+\vspace{0.2cm}
+
+\pause
+
+\textbf{Geostatistical formulation}
+
+Let $a_0=1$, $a_i=-\ell_i$ $\Rightarrow$ $\sum_{i=0}^n a_i=0$
+
+\[
+E\!\left[\sum_{i=0}^n a_i Y_i\right]^2
+=
+- \sum_{i,j} a_i a_j \, \gamma(\|x_i-x_j\|)
+\]
+
+\vspace{0.2cm}
+
+\pause
 
 \begin{center}
-And $E[\sum_{i=0}^n a_i Y_i]^2 = - \sum_i \sum_j a_i a_j \gamma (||x_i-x_j||)$
+\textbf{Result:} solving this constrained quadratic problem gives the
+\textbf{kriging weights}
 \end{center}
-
-\pause
-
-\vspace{\baselineskip}
-
-The $\ell_i$ are then estimated by solving constrained optimization on this criterion
 
 ## Maximum likelihood approach
 
@@ -1433,6 +1448,8 @@ And \textbf{Spatio-Temporal Statistics with R} by Christopher K. Wikle, Andrew Z
 
 \frametitle{Few topics for flipped classroom}
 
+\scriptsize
+
 - Some old school geostatistics: \href{https://archimer.ifremer.fr/doc/00585/69732/67621.pdf}{RGeostats} or \href{https://gstlearn.org/}{gstlearn}
 
   - Indices of spatial distributions
@@ -1462,6 +1479,8 @@ And \textbf{Spatio-Temporal Statistics with R} by Christopher K. Wikle, Andrew Z
 ---
 
 \frametitle{Few topics for flipped classroom}
+
+\scriptsize
 
 - **Data integration for heterogeneous spatial data**
 

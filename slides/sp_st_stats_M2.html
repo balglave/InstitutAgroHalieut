@@ -374,10 +374,10 @@ f_{MN}(\delta_1,...,\delta_n)=(2 \pi)^{-n / 2}|\boldsymbol{\Sigma}|^{-1 / 2} \ex
 <div class="cell">
 <div class="cell-output cell-output-stdout">
 <pre><code>Time used:
-    Pre = 0.679, Running = 2.26, Post = 0.488, Total = 3.43 
+    Pre = 0.551, Running = 3.45, Post = 0.506, Total = 4.51 
 Fixed effects:
              mean    sd 0.025quant 0.5quant 0.975quant  mode kld
-(Intercept) 8.991 0.164       8.67    8.991      9.312 8.991   0
+(Intercept) 8.994 0.164      8.673    8.994      9.315 8.994   0
 
 Random effects:
   Name    Model
@@ -386,14 +386,14 @@ Random effects:
 Model hyperparameters:
                                          mean    sd 0.025quant 0.5quant
 Precision for the Gaussian observations 0.009 0.000      0.009    0.009
-Range for spatial                       0.020 0.005      0.010    0.020
-Stdev for spatial                       4.315 0.363      3.698    4.285
+Range for spatial                       0.020 0.006      0.009    0.020
+Stdev for spatial                       4.377 0.454      3.612    4.335
                                         0.975quant  mode
 Precision for the Gaussian observations      0.009 0.009
-Range for spatial                            0.030 0.020
-Stdev for spatial                            5.122 4.183
+Range for spatial                            0.034 0.019
+Stdev for spatial                            5.395 4.207
 
-Marginal log-Likelihood:  -283181.26 
+Marginal log-Likelihood:  -283181.01 
  is computed 
 Posterior summaries for the linear predictor and the fitted values are computed
 (Posterior marginals needs also 'control.compute=list(return.marginals.predictor=TRUE)')</code></pre>
@@ -555,12 +555,12 @@ Posterior summaries for the linear predictor and the fitted values are computed
 <h1>Inference method</h1>
 <section id="kriging" class="level2">
 <h2 class="anchored" data-anchor-id="kriging">Kriging</h2>
-<p>Basis of geostatistics Minimum mean-squared error approach</p>
-<p>Let’s define observations <span class="math inline">\(\mathbf{Y}=(Y_1,Y_2,...,Y_n)\)</span></p>
-<p>A linear predictor of <span class="math inline">\(Y_0\)</span> based on <span class="math inline">\(\mathbf{Y}\)</span> would take the form <span class="math inline">\(\sum \ell_i Y_i+\alpha_0\)</span></p>
-<p>Using squared error loss, the best linear prediction would minimize <span class="math display">\[E\left[Y_0-\left(\sum \ell_i Y_i+\alpha_0\right)\right]^2 \text{ over } \ell_i \text{ and } \alpha_0\]</span></p>
-<p>Setting <span class="math inline">\(\sum \ell_i = 1\)</span>, <span class="math inline">\(\alpha_0 = 0\)</span>, <span class="math inline">\(a_0=1\)</span> and <span class="math inline">\(a_i=-\ell_i\)</span>, the criterion becomes <span class="math inline">\(E[\sum_{i=0}^n a_i Y_i]^2\)</span> with <span class="math inline">\(\sum a_i = 0\)</span>.</p>
-<p>The <span class="math inline">\(\ell_i\)</span> are then estimated by solving constrained optimization on this criterion</p>
+<p> predict <span class="math inline">\(Y_0 = Y(x_0)\)</span> from observations <span class="math inline">\(\mathbf{Y}=(Y_1,\dots,Y_n)\)</span> at locations <span class="math inline">\((x_1,\dots,x_n)\)</span></p>
+<p> [ Y_0 = _{i=1}^n <em>i Y_i, </em>{i=1}^n _i = 1 ]</p>
+<p> [ _{_i} E!]</p>
+<p></p>
+<p>Let <span class="math inline">\(a_0=1\)</span>, <span class="math inline">\(a_i=-\ell_i\)</span> <span class="math inline">\(\Rightarrow\)</span> <span class="math inline">\(\sum_{i=0}^n a_i=0\)</span></p>
+<p>[ E!^2 = - _{i,j} a_i a_j , (|x_i-x_j|) ]</p>
 </section>
 <section id="maximum-likelihood-approach" class="level2">
 <h2 class="anchored" data-anchor-id="maximum-likelihood-approach">Maximum likelihood approach</h2>
@@ -579,8 +579,8 @@ Posterior summaries for the linear predictor and the fitted values are computed
 Random sampling in the joint posterior distribution <span class="math inline">\(\textcolor{BaptisteBlue}{P(\boldsymbol{\delta, \theta} | \mathbf{Y})}\)</span> (Metropolis-Hastings algorithm)
 </section>
 </section>
-<section id="whats-next" class="level1">
-<h1>What’s next?</h1>
+<section id="to-go-further" class="level1">
+<h1>To go further</h1>
 <hr>
 <p>And by Christopher K. Wikle, Andrew Zammit-Mangion, and Noel Cressie. Published by Chapman &amp; Hall/CRC. </p>
 <hr>
@@ -606,23 +606,25 @@ Random sampling in the joint posterior distribution <span class="math inline">\(
 </ul>
 <hr>
 <ul>
-<li><p>Applications with the INLA software: See </p>
-<ul>
-<li><p>Integrated models</p></li>
-<li><p>Point process and preferential sampling</p></li>
-<li><p>Spatial non-stationarity</p></li>
-<li><p>Extreme analysis</p></li>
-<li><p>Space-time coregionalization</p></li>
-<li><p>Hurdle model (= zero-inflated model)</p></li>
-</ul></li>
+<li><strong>Data integration for heterogeneous spatial data</strong></li>
 </ul>
+<p>Alglave, B., Rivot, E., Etienne, M. P., Woillez, M., Thorson, J. T., &amp; Vermard, Y. (2022). Combining scientific survey and commercial catch data to map fish distribution. ICES Journal of Marine Science, 79(4), 1133-1149.</p>
 <ul>
-<li><p>Applications with the TMB software:</p>
-<ul>
-<li><p>Some of my own codes: </p></li>
-<li><p>and RTMB codes: </p></li>
-</ul></li>
+<li><strong>Spatio-temporal modelling of species distribution</strong></li>
 </ul>
+<p>Alglave, B., Vermard, Y., Rivot, E., Etienne, M. P., &amp; Woillez, M. (2023). Identifying mature fish aggregation areas during spawning season by combining catch declarations and scientific survey data. Canadian Journal of Fisheries and Aquatic Sciences, 80(5), 808-824.</p>
+<ul>
+<li><strong>Empirical Orthogonal Funcations or PCA for spatio-temporal data</strong></li>
+</ul>
+<p>Alglave, B., Olmos, M., Casemajor, J., Etienne, M. P., Rivot, E., Woillez, M., &amp; Vermard, Y. (2024). Investigating fish reproduction phenology and essential habitats by identifying the main spatio-temporal patterns of fish distribution. ICES Journal of Marine Science, 81(8), 1563-1574.</p>
+<ul>
+<li><strong>Integrated modelling of spatio-temporal dynamics</strong></li>
+</ul>
+<p>Olmos, M., Cao, J., Thorson, J. T., Punt, A. E., Monnahan, C. C., Alglave, B., &amp; Szuwalski, C. (2023). A step towards the integration of spatial dynamics in population dynamics models: eastern Bering Sea snow crab as a case study. Ecological Modelling, 485, 110484.</p>
+<ul>
+<li><strong>Joint species distribution model and abundance indices</strong></li>
+</ul>
+<p>Thorson, J. T., &amp; Barnett, L. A. (2017). Comparing estimates of abundance trends and distribution shifts using single-and multispecies models of fishes and biogenic habitat. ICES Journal of Marine Science, 74(5), 1311-1321.</p>
 </section>
 
 </main>
