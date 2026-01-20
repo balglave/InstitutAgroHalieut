@@ -100,7 +100,7 @@ plot_depth <- ggplot() +
   geom_sf(data = mapBase) +
   # geom_sf(data = Catch_sf_species,aes(size = Depth),col="grey",alpha=0.05)+
   coord_sf(xlim = xlims, ylim = ylims, expand = FALSE)+
-  ggtitle("Predicted values od depth")
+  ggtitle("Predicted values of depth")
 
 ## Now we add depth to the predict dataset
 newdata_with_depth <- data.frame(Depth = 1/p_depth$est,
@@ -118,7 +118,7 @@ plot_with_depth <- ggplot() +
   coord_sf(xlim = xlims, ylim = ylims, expand = FALSE)+
   ggtitle("Predictions with the depth effect")
 
-cowplot::plot_grid(plot_without_depth,plot_with_depth,plot_depth,nrow = 1)
+cowplot::plot_grid(plot_without_depth,plot_with_depth,plot_depth,nrow = 1,align = "hv")
 
 ## TO DO :)
 ## Add a spatio-temporal term (the data are spatio-temporal, but at this point the model is only spatial)
