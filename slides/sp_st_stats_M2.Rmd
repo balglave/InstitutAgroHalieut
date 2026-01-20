@@ -1170,7 +1170,7 @@ res <- inla(formulae,  data = inla.stack.data(sdat),
 par(mfrow = c(2, 2), mar = c(3, 3, 1, 0.1), mgp = 2:0)
 for (j in 1:4){
   plot(res$marginals.hyper[[j]][,1],res$marginals.hyper[[j]][,2], type = 'l', 
-       xlab = names(res$marginals.hyper)[j], ylab = 'Density')
+       xlab = names(res$marginals.hyper)[j], ylab = 'Density',cex=26)
   abline(v = c(1 / sd.y^2, sqrt(8) / params[1], params[2]^0.5, rho)[j],
          col = 2)
 }
@@ -1482,9 +1482,9 @@ And \textbf{Spatio-Temporal Statistics with R} by Christopher K. Wikle, Andrew Z
 
 \scriptsize
 
-- **Data integration for heterogeneous spatial data**
+- **Joint species distribution models, factor models and ecosystem forecasting**
 
-Alglave, B., Rivot, E., Etienne, M. P., Woillez, M., Thorson, J. T., & Vermard, Y. (2022). Combining scientific survey and commercial catch data to map fish distribution. ICES Journal of Marine Science, 79(4), 1133-1149.
+Thorson, J. T., Arimitsu, M. L., Barnett, L. A., Cheng, W., Eisner, L. B., Haynie, A. C., ... & Siddon, E. C. (2021). Forecasting community reassembly using climate‐linked spatio‐temporal ecosystem models. Ecography, 44(4), 612-625.
 
 - **Spatio-temporal modelling of species distribution**
 
